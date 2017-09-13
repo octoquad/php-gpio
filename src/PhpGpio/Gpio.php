@@ -2,6 +2,8 @@
 
 namespace PhpGpio;
 
+use Exception;
+
 class Gpio implements GpioInterface
 {
     // Using BCM pin numbers.
@@ -78,11 +80,14 @@ class Gpio implements GpioInterface
     private $exportedPins = array();
 
     /**
-     * Setup pin, takes pin number and direction (in or out)
+     * Setup the pin which takes a pin number and the direction
      *
-     * @param  int    $pinNo
-     * @param  string $direction
-     * @return mixed  string GPIO value or boolean false
+     * @param  int      $pinNo        Pin Number
+     * @param  string   $direction    "in" or "out"
+     *
+     * @throws Exception if the current user running the script lacks permission to write to /sys/class/gpio/
+     *
+     * @return Gpio|bool Gpio otherwise false if pin setup failed
      */
     public function setup($pinNo, $direction)
     {
@@ -90,20 +95,28 @@ class Gpio implements GpioInterface
             return false;
         }
 
-        // if exported, unexport it first
         if ($this->isExported($pinNo)) {
             $this->unexport($pinNo);
         }
 
-        // Export pin
-        file_put_contents(GpioInterface::PATH_EXPORT, $pinNo);
+        if (@file_put_contents(GpioInterface::PATH_EXPORT, $pinNo) === false) {
+            throw new Exception("Unable to export pin {$pinNo} to application space.");
 
-        // if valid direction then set direction
-        if ($this->isValidDirection($direction)) {
-            file_put_contents(GpioInterface::PATH_GPIO.$pinNo.'/direction', $direction);
+            return false;
         }
 
-        // Add to exported pins array
+        if (!$this->isValidDirection($direction)) {
+            throw new Exception("Pin direction {$direction} is invalid. Valid pin directions are 'in' or 'out'.");
+
+            return false;
+        }
+
+        if (@file_put_contents(GpioInterface::PATH_GPIO . $pinNo . '/direction', $direction) === false) {
+            throw new Exception('Setting of GPIO pin direction is currently unavailable. Ensure required pin has been exported first.');
+
+            return false;
+        }
+
         $this->exportedPins[] = $pinNo;
 
         return $this;

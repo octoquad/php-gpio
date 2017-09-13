@@ -22,8 +22,10 @@ class GpioTest extends \PhpUnit_Framework_TestCase
         // and the 4th Gpio pin is reserved to read the DS18B20 sensor.
         // Other available gpio pins are connected to LEDs
         $this->hackablePins = array(
-           17, 18, 21, 22, 23,24, 25
-       );
+            17, 18, 21, 22, 23,24, 25
+        );
+
+        $this->hackablePins = $this->gpio->getHackablePins();
     }
 
     /**
@@ -117,11 +119,18 @@ class GpioTest extends \PhpUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException PHPUnit_Framework_Error_Warning
+     * Tests exception handling across supported versions of PHP
      */
     public function testSetupWithMissingArguments()
     {
+        $version = phpversion();
+
+        if (version_compare($version, '7.1.0', '>=')) {
+            $this->setExpectedException(\ArgumentCountError::class);
+        } elseif (version_compare($version, '7.0.0', '>=') && version_compare($version, '7.1.0', '<')) {
+            $this->setExpectedException('PHPUnit_Framework_Error');
+        }
+
         $this->gpio->setup(17);
     }
-
 }
